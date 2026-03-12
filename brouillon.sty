@@ -1,0 +1,22 @@
+\section*{Introduction}
+
+The project is based on the paper "Real-Time Relief Mapping on Arbitrary Polygonal Surfaces". Due to some limitations of some existing techniques such as bump mapping, parallax mapping and displacement mapping, the techniques discussed in this paper were addressed to solve many these problems. These issues vary from incorrect self-occlusion, bad shadowing, texture distortions... \newline More concretely, this paper presents a technique for mapping a relief texture on any polygonal surface and handle correct self-occlusion, interpenetration, shadow, and per-piwel lighting effects. The approach works in tangent space which solves a challenging issue in traditionnal normal mapping when the texture fragments normals are not in the same direction of the surface normals. Thanks to the tangent space, the relief texture can be mapped on any polygonal surface pointing in any direction (vertical surface, curved surface, horizontal surface...) without any lighting issue. briefly, the technique uses light rays and camera rays to find the right uv texture coordinate of each fragment and is implemented in the fragment shader. It then exploits the programmability of modern graphics hardware which makes it very efficient in real time.
+
+\section*{Data}
+The datas used for this project are: \newline
+- obj files: contains the descriptions of the 3D model such as vertices coordinates (x, y, z), texture coordinates (normalized between -1 et +1) and the normal of each face. \newline
+- Diffuse texture: a simple image with the pixel colors \newline
+- Relief texture: an image normalized between 0 and 1 describing the depth of each pixel in the diffuse texture.
+
+\section*{Results}
+
+\subsection*{Preparation}
+The implementation was made with PyOpenGL (a python OpenGL library). \newline Before diving into writting the fragment shader which is the core of this technique, we needed to well set up the entries of the fragment shader.
+
+\subsection*{Vertex Shader}
+The vertex shader receives the vertex coordinate in body space, the uv coordinate which corresponds to the coordinates of the point in the texture which should be applied to the vertex, the tangent and the normal of the vertex. We then compute the tangent space whose origin is the vertex. The space is composed of the vectors T which follows the U direction of the texture and B (Cross product between the tangent and the normal) which follows the V direction of the texture. And we compute the TBN matrix which transforms any vector from world to the tangent space. And finally, we transform the vector from the camera to the vertex and the vector from the light to the vertex in the tangent space.
+
+\subsection*{Fragment Shader}
+The goal in this shader is to retrieve the real texture coordinate to assign to the fragment. This texture coordinate may differ from the one we received from the fragment shader due to the texture deformation, the depth and the position of the camera. Working now in the tangent space, we first start a linear search by casting a ray from the camera to the uv coordinate(Point A) and then follow this direction at small step (1/60) until we reach the first point inside the surface. We know that we are inside the surface when the distance from the point A to the current position is greater than the depth of at this position. \newline
+Once we have the coordinate of the point inside the surface, we can start a binary search to find a good approximation of the point where the ray touches the surface. \newline
+Once we have the coordinate of this point, it's almost done. The final step is the per-pixel lighting. We get the normal of the fragment from the relief map and then compute the cosine of the angle between the normal and the ray of light to get the intensity of the light at this point. We also clamp the negative values at 0 in case the light hits from the back. Multiplying the base color of the texture by the intensity, we get the final color of the fragment.
